@@ -1,0 +1,234 @@
+<canvas id="c"></canvas>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<div>
+    <label>
+        size
+        <input id = "size", type = "number">
+    </label>
+</div>
+
+<div>
+    <label>
+        height
+        <input id = "height", type = "number">
+    </label>
+</div>
+
+<style>
+    div{
+        left: 10px;
+        top: 10px;
+    }   
+</style>
+
+<script>
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x0000ff)
+
+const camera = new THREE.PerspectiveCamera( 45, innerWidth / innerHeight, 1, 1000 );
+scene.add( camera );
+camera.position.set(100,100,100);
+camera.lookAt(50,50,0);
+
+
+const light = new THREE.DirectionalLight(({color: 0xbfcc10}))
+light.position.set(5,5,5)
+scene.add(light)
+
+const renderer = new THREE.WebGLRenderer(({antialias:true}))
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+let polygons = []
+let grid = []
+let gridcircles = []
+let grid_active = null;
+let current_line = null;
+
+
+function gen_array(size){
+    const spacing = 5
+
+    if (grid_active === true) return;
+    if (size > 50) return;
+    for(let i =0;i<size; i++){
+       for(let j =0;j<size; j++) {
+        const pt = new THREE.Vector3(i * spacing,j * spacing,0)
+        grid.push(pt)
+        const material = new THREE.MeshBasicMaterial(({color : 0xffffff}))
+        const geometry = new THREE.CircleGeometry(0.5, 8)
+        const circle = new THREE.Mesh(geometry, material)
+        circle.position.copy(pt)
+        scene.add(circle)
+        gridcircles.push(circle)
+        grid_active =true;
+       }
+    }
+    console.log("array made")
+
+}
+
+let distances = []
+function calc_dist(point){
+    distances = []
+    for(let i=0;i<grid.length;i++){
+        let dist = Math.sqrt(((grid[i].x - point.x)**2) + ((grid[i].y - point.y)**2))
+        distances.push(dist)
+        //console.log(dist)
+    }
+    //console.log(distances)
+    
+}
+let base_poly = []
+function draw(polygon){
+    const material = new THREE.LineBasicMaterial(({color : 0xeb079f}));
+    const geometry = new THREE.BufferGeometry().setFromPoints(polygon);
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+    current_line = true
+}
+
+function new_line(){
+    
+    //if (current_line === false) return;
+
+    base_poly.push(base_poly[0]);
+    base_poly = []
+    polygons.push(base_poly)
+}
+
+function extrude(height){
+    let vertices = []
+    let indices  = []
+
+    let Tpoly = []
+    for(let i=0;i<base_poly.length;i++){
+        let v = base_poly[i].clone()
+        v.z += height
+        Tpoly.push(v)
+    }
+
+    for(let i=0;i<Tpoly.length;i++){
+        vertices.push(Tpoly[i].x, Tpoly[i].y, Tpoly[i].z);
+    }
+    for(let i=0;i<base_poly.length;i++){
+        vertices.push(base_poly[i].x, base_poly[i].y, base_poly[i].z);
+    }
+
+    let n = base_poly.length;
+    //if (n < 3) return;
+
+    for(let i=0;i<n;i++){
+        let next = (i + 1) % n
+
+        let b1 = i
+        let b2 = next
+        let t1 = i + n
+        let t2 = next + n
+
+        indices.push(b1, b2, t1);
+        indices.push(b2, t2, t1);
+
+    }
+
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices)
+    geometry.computeVertexNormals()
+
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xaaaaaa,
+        side: THREE.DoubleSide
+    });    
+    
+    const mesh = new THREE.Mesh( geometry, material );
+    scene.add(mesh)
+    console.log(mesh)
+
+}
+
+function least_indice(distances){
+    
+
+    let lowest = 0 
+    for(let i =0;i<distances.length;i++){
+        if(distances[i] < distances[lowest]){
+            lowest = i
+        }
+    }
+    console.log("lowest index:", lowest)
+
+    gridcircles[lowest].material.color.set(0xff0522)
+    return lowest;
+
+    }
+
+const keys = {};
+function onKeyDown(event) {
+    keys[event.key.toLowerCase()] = true; 
+}
+function onKeyUp(event) {
+    keys[event.key.toLowerCase()] = false;
+}
+
+window.addEventListener('keydown', onKeyDown, false);
+window.addEventListener('keyup', onKeyUp, false);
+
+const heightInput = document.getElementById("height");
+heightInput.addEventListener("input", () => {
+    const h = parseFloat(heightInput.value)
+    extrude(h)
+});
+
+
+const sizeInput = document.getElementById("size")
+sizeInput.addEventListener("input", () => {
+    scene.remove(grid);
+    grid = []
+    let s = parseInt(sizeInput.value)
+    gen_array(s)
+})
+
+gen_array(20)
+
+
+renderer.domElement.addEventListener("click", (event) =>{
+  console.log("clicked");
+  const rect = renderer.domElement.getBoundingClientRect();
+
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const point = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, point);
+  base_poly.push(point)
+
+  calc_dist(point)
+  least_indice(distances)
+  draw(base_poly)
+});
+
+function animate(){
+    requestAnimationFrame(animate)
+    renderer.render(scene, camera)
+
+    if (keys['p']){
+        console.log("p pressed")
+        new_line()
+    }
+
+
+}
+    
+animate()
+
+</script>
