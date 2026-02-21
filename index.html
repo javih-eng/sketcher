@@ -16,6 +16,27 @@
     </label>
 </div>
 
+<div>
+    <button id = "rotate y">rotate y</button>
+    <button id = "rotate x">rotate x</button>
+    <button id = "rotate z">rotate z</button>
+</div>
+
+<div>
+    <button id = "increase y">increase y</button>
+    <button id = "increase x">increase x</button>
+    <button id = "increase z">increase z</button>
+</div>
+
+<div>
+    <button id = "decrease y">decrease y</button>
+    <button id = "decrease x">decrease x</button>
+    <button id = "decrease z">decrease z</button>
+</div>
+
+<div>
+    <button id = "extrude">extrude</button>
+
 <style>
     div{
         left: 10px;
@@ -47,10 +68,12 @@ const mouse = new THREE.Vector2();
 const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
 let polygons = []
+let extrusions = []
 let grid = []
 let gridcircles = []
 let grid_active = null;
 let current_line = null;
+let mesh = null;
 
 
 function gen_array(size){
@@ -115,11 +138,12 @@ function extrude(height){
         Tpoly.push(v)
     }
 
-    for(let i=0;i<Tpoly.length;i++){
-        vertices.push(Tpoly[i].x, Tpoly[i].y, Tpoly[i].z);
-    }
+    
     for(let i=0;i<base_poly.length;i++){
         vertices.push(base_poly[i].x, base_poly[i].y, base_poly[i].z);
+    }
+    for(let i=0;i<Tpoly.length;i++){
+        vertices.push(Tpoly[i].x, Tpoly[i].y, Tpoly[i].z);
     }
 
     let n = base_poly.length;
@@ -138,7 +162,6 @@ function extrude(height){
 
     }
 
-
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setIndex(indices)
@@ -149,9 +172,12 @@ function extrude(height){
         side: THREE.DoubleSide
     });    
     
-    const mesh = new THREE.Mesh( geometry, material );
+    
+
+    mesh = new THREE.Mesh( geometry, material );
     scene.add(mesh)
     console.log(mesh)
+    extrusions.push(mesh)
 
 }
 
@@ -182,12 +208,75 @@ function onKeyUp(event) {
 window.addEventListener('keydown', onKeyDown, false);
 window.addEventListener('keyup', onKeyUp, false);
 
-const heightInput = document.getElementById("height");
-heightInput.addEventListener("input", () => {
-    const h = parseFloat(heightInput.value)
-    extrude(h)
+const rotateButton = document.getElementById("rotate y");
+rotateButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.rotation.y += Math.PI / 4;
+    }
 });
 
+const rotateXButton = document.getElementById("rotate x");
+rotateXButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.rotation.x += Math.PI / 4;
+    }
+});
+
+const rotateZButton = document.getElementById("rotate z");
+rotateZButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.rotation.z += Math.PI / 4;
+    }
+});
+
+const extrudeButton = document.getElementById("extrude");
+extrudeButton.addEventListener("click", () => {
+    const h = parseFloat(document.getElementById("height").value) || 10;
+    extrude(h);
+    console.log("Extruded with height:", h);
+});
+
+const increaseYButton = document.getElementById("increase y");
+increaseYButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.y += 5;
+    }
+});
+
+const decreaseYButton = document.getElementById("decrease y");
+decreaseYButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.y -= 5;
+    }
+});
+
+const increaseXButton = document.getElementById("increase x");
+increaseXButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.x += 5;
+    }
+}); 
+
+const decreaseXButton = document.getElementById("decrease x");
+decreaseXButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.x -= 5;
+    }
+}); 
+
+const decreaseZButton = document.getElementById("decrease z");
+decreaseZButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.z -= 5;
+    }
+});
+
+const increaseZButton = document.getElementById("increase z");
+increaseZButton.addEventListener("click", () => {
+    if(mesh){
+        mesh.position.z += 5;
+    }
+});
 
 const sizeInput = document.getElementById("size")
 sizeInput.addEventListener("input", () => {
@@ -225,6 +314,8 @@ function animate(){
         console.log("p pressed")
         new_line()
     }
+
+    
 
 
 }
